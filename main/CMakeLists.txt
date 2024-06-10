@@ -1,2 +1,2 @@
-idf_component_register(SRCS "main.c" "button.c"
+idf_component_register(SRCS "stack_tower.c" "i2c4display.c" "main.c" "button.c"
                     INCLUDE_DIRS ".")
