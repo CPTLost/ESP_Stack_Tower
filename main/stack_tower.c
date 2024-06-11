@@ -18,7 +18,7 @@ return_t setBlockAnimationFrame(animation_movement ani_movement, uint8_t x_start
     return success;
 }
 
-return_t updateSetBlock(animation_movement ani_movement, uint8_t x_start, uint8_t prev_y_position, block_t *block, uint8_t width_of_screen)
+return_t adaptBlockFrame(animation_movement ani_movement, uint8_t x_start, uint8_t prev_y_position, block_t *block, uint8_t width_of_screen)
 {
     if (0 == prev_y_position)
     {
