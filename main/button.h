@@ -6,6 +6,6 @@
 
 #include "return_t.h"
 
-return_t configure_button(uint8_t GPIO_BUTTON_PIN);
+return_t button_configure(uint8_t GPIO_BUTTON_PIN);
 
 #endif

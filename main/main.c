@@ -8,15 +8,20 @@
 
 #define LEFT_BTN_GPIO 9
 
-// Maybe SDKconfig
-#define HEIGHT_OF_BLOCK 10
+// Maybe put into SDKconfig
+#define HEIGHT_OF_BLOCK 12
 #define WIDTH_OF_BLOCK 30
+#define X_MOVEMENT decreasing_x_movement
 
 static const char *TAG = "STACK TOWER";
 
+// globals
+uint32_t game_count = 0;
 bool clear_screen = false;
 bool game_lost = false;
 bool button_pressed = false;
+
+// This function is called when interrupt is triggered
 return_t button_callback()
 {
     ESP_EARLY_LOGI(TAG, "Button Callback"); // DEBUG
@@ -38,10 +43,10 @@ void app_main(void)
     // init i2c for and display
     ESP_ERROR_CHECK(initI2C(I2C_INTERFACE));
     ESP_ERROR_CHECK(graphics_init(I2C_INTERFACE, CONFIG_GRAPHICS_PIXELWIDTH, CONFIG_GRAPHICS_PIXELHEIGHT, 0, false, false));
-    configure_button(LEFT_BTN_GPIO);
+    button_configure(LEFT_BTN_GPIO);
 
     uint8_t x_start = CONFIG_GRAPHICS_PIXELWIDTH; // Due to display orientation it needs to start from max x pos and count down
-    uint8_t prev_y_pos = 0;
+    uint8_t prev_block_y_pos = 0;
 
     block_t block = {block.width = WIDTH_OF_BLOCK, block.height = HEIGHT_OF_BLOCK};
 
@@ -52,11 +57,14 @@ void app_main(void)
         int y_position = 0;
         bool stop_anim = false;
 
-        if (game_lost == true)
+        if (game_lost == true && game_count != 0)
         {
             x_start = CONFIG_GRAPHICS_PIXELWIDTH;
-            prev_y_pos = 0;
+            prev_block_y_pos = 0;
             block.width = WIDTH_OF_BLOCK;
+
+            ESP_LOGW(TAG, "Game count: %" PRIu32, game_count);
+            game_count = 0;
         }
 
         // Game loop: Block Animation
@@ -74,10 +82,10 @@ void app_main(void)
             // In every loop the y_position is incremented by 1 -> the block position is updated (shifted to the left by 1)
             y_position += 1;
             graphics_startUpdate();
-            // When the block gets out of bounds you lose, except the frist block
-            if (setBlockAnimationFrame(decreasing_x_movement, x_start, y_position, &block, CONFIG_GRAPHICS_PIXELHEIGHT) == out_of_bounds)
+            // When the block gets out of bounds you lose, except at the frist one
+            if (setBlockAnimationFrame(X_MOVEMENT, x_start, y_position, &block, CONFIG_GRAPHICS_PIXELHEIGHT) == out_of_bounds)
             {
-                if (prev_y_pos != 0)
+                if (game_count != 0)
                 {
                     ESP_LOGE(TAG, "OUT OF BOUNDS -> YOU LOST!");
                     game_lost = true;
@@ -92,31 +100,38 @@ void app_main(void)
                 stop_anim = true;
 
                 graphics_startUpdate();
-                adaptBlockFrame(decreasing_x_movement, x_start, prev_y_pos, &block, CONFIG_GRAPHICS_PIXELHEIGHT);
+                adaptBlockFrame(X_MOVEMENT, x_start, prev_block_y_pos, &block, CONFIG_GRAPHICS_PIXELHEIGHT);
                 graphics_finishUpdate();
 
                 // Here the new block width is calculated, it must skip the first block
-                if (prev_y_pos != 0)
+                if (game_count != 0)
                 {
-                    block.width -= (y_position >= prev_y_pos) ? (y_position - prev_y_pos) : (prev_y_pos - y_position);
+                    block.width -= (y_position >= prev_block_y_pos) ? (y_position - prev_block_y_pos) : (prev_block_y_pos - y_position);
                     if (block.width <= 0)
                     {
                         ESP_LOGE(TAG, "YOU LOST!");
                         game_lost = true;
                     }
                 }
-                ESP_LOGI(TAG, "Block width: %" PRIu8, block.width);
 
-                x_start -= HEIGHT_OF_BLOCK;
+                // This shifts the animation to the next line (determined by block heigth)
+                (X_MOVEMENT == decreasing_x_movement) ? (x_start -= HEIGHT_OF_BLOCK) : (x_start += HEIGHT_OF_BLOCK);
 
-                if ((prev_y_pos > y_position) || (prev_y_pos == 0))
+                // Gets correct value for prev y position
+                if ((prev_block_y_pos > y_position) || (game_count == 0))
                 {
-                    prev_y_pos = y_position;
+                    prev_block_y_pos = y_position;
+                }
+
+                if (game_lost == false)
+                {
+                    game_count += 1;
                 }
             }
+            // speed of Animation
             vTaskDelay(20 / portTICK_PERIOD_MS);
         }
+        // When game not lost increment game count
         vTaskDelay(1000 / portTICK_PERIOD_MS);
-        // graphics_clearScreen();
     }
 }

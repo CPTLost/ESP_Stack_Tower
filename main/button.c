@@ -11,7 +11,7 @@ void button_isrHandler()
     button_callback();
 }
 
-return_t configure_button(uint8_t GPIO_BUTTON_PIN)
+return_t button_configure(uint8_t GPIO_BUTTON_PIN)
 {
     gpio_config_t io_conf = {
         .pin_bit_mask = 1 << GPIO_BUTTON_PIN,
