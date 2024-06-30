@@ -66,6 +66,12 @@ void app_main(void)
             prev_block_y_pos = 0;
             block.width = WIDTH_OF_BLOCK;
 
+            char game_score[16];
+            sprintf(game_score, "Game Score: %ld", game_count);
+            graphics_startUpdate();
+            graphics_writeString(game_score);
+            graphics_finishUpdate();
+
             ESP_LOGW(TAG, "Game count: %" PRIu32, game_count);
             game_count = 0;
         }
