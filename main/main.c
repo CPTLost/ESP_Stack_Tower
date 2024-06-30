@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 #include "graphics.h"
 #include "return_t.h"
 #include "button.h"
@@ -11,6 +12,7 @@
 // Maybe put into SDKconfig
 #define HEIGHT_OF_BLOCK 12
 #define WIDTH_OF_BLOCK 30
+// decreasing means that you start from max x value and then move down. Dependend on display orientation
 #define X_MOVEMENT decreasing_x_movement
 
 static const char *TAG = "STACK TOWER";
@@ -45,7 +47,8 @@ void app_main(void)
     ESP_ERROR_CHECK(graphics_init(I2C_INTERFACE, CONFIG_GRAPHICS_PIXELWIDTH, CONFIG_GRAPHICS_PIXELHEIGHT, 0, false, false));
     button_configure(LEFT_BTN_GPIO);
 
-    uint8_t x_start = CONFIG_GRAPHICS_PIXELWIDTH; // Due to display orientation it needs to start from max x pos and count down
+    // Due to display orientation it needs to start from max x pos and count down
+    uint8_t x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
     uint8_t prev_block_y_pos = 0;
 
     block_t block = {block.width = WIDTH_OF_BLOCK, block.height = HEIGHT_OF_BLOCK};
@@ -53,13 +56,13 @@ void app_main(void)
     // Main loop
     while (1)
     {
-        // Starting point after every block animation
         int y_position = 0;
         bool stop_anim = false;
 
+        // This block resets the game when its lost
         if (game_lost == true && game_count != 0)
         {
-            x_start = CONFIG_GRAPHICS_PIXELWIDTH;
+            x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
             prev_block_y_pos = 0;
             block.width = WIDTH_OF_BLOCK;
 
@@ -67,10 +70,11 @@ void app_main(void)
             game_count = 0;
         }
 
-        // Game loop: Block Animation
+        // Block animation: 1 while interation == 1 level
         while ((y_position < CONFIG_GRAPHICS_PIXELHEIGHT + WIDTH_OF_BLOCK) && (stop_anim == false) && (game_lost == false))
         {
-            // After game is lost the screen needs to be clean before starting with new game
+            /*  - After a game is lost the screen needs to be cleared before starting the new game
+                - The cleaer_screen is set to true inside the button_callback when the game was lost and also when level 10 is reached */
             if (clear_screen == true)
             {
                 clear_screen = false;
@@ -79,10 +83,10 @@ void app_main(void)
                 graphics_finishUpdate();
             }
 
-            // In every loop the y_position is incremented by 1 -> the block position is updated (shifted to the left by 1)
+            // In every loop the y_position is incremented by 1 -> the block position is updated (= shifted to the left by 1)
             y_position += 1;
             graphics_startUpdate();
-            // When the block gets out of bounds you lose, except at the frist one
+            // When the block gets out of bounds you lose, except in the first round
             if (setBlockAnimationFrame(X_MOVEMENT, x_start, y_position, &block, CONFIG_GRAPHICS_PIXELHEIGHT) == out_of_bounds)
             {
                 if (game_count != 0)
@@ -93,7 +97,7 @@ void app_main(void)
             }
             graphics_finishUpdate();
 
-            // When the button is pressed the overhanging bit of the block is removed and the block width is updated
+            // When the button is pressed the overhanging part of the block is removed and the block width is updated
             if (button_pressed == true)
             {
                 button_pressed = false;
@@ -103,35 +107,49 @@ void app_main(void)
                 adaptBlockFrame(X_MOVEMENT, x_start, prev_block_y_pos, &block, CONFIG_GRAPHICS_PIXELHEIGHT);
                 graphics_finishUpdate();
 
-                // Here the new block width is calculated, it must skip the first block
-                if (game_count != 0)
+                /*  Here the block width of the next block is calculated and it also
+                    remembers where the current block is placed by using the blocks left end (= y_position) as a reference */
+                if (0 == (game_count % (CONFIG_GRAPHICS_PIXELWIDTH / HEIGHT_OF_BLOCK)))
+                {
+                    block.width -= (y_position > CONFIG_GRAPHICS_PIXELHEIGHT) ? (y_position - CONFIG_GRAPHICS_PIXELHEIGHT) : (0);
+                    prev_block_y_pos = (y_position > CONFIG_GRAPHICS_PIXELHEIGHT) ? (CONFIG_GRAPHICS_PIXELHEIGHT) : (y_position);
+                }
+                else
                 {
                     block.width -= (y_position >= prev_block_y_pos) ? (y_position - prev_block_y_pos) : (prev_block_y_pos - y_position);
-                    if (block.width <= 0)
+                    if ((prev_block_y_pos > y_position))
                     {
-                        ESP_LOGE(TAG, "YOU LOST!");
-                        game_lost = true;
+                        prev_block_y_pos = y_position;
                     }
                 }
 
-                // This shifts the animation to the next line (determined by block heigth)
-                (X_MOVEMENT == decreasing_x_movement) ? (x_start -= HEIGHT_OF_BLOCK) : (x_start += HEIGHT_OF_BLOCK);
-
-                // Gets correct value for prev y position
-                if ((prev_block_y_pos > y_position) || (game_count == 0))
+                // Checks if u missed your target completely
+                if (block.width <= 0)
                 {
-                    prev_block_y_pos = y_position;
+                    ESP_LOGE(TAG, "YOU LOST!");
+                    game_lost = true;
                 }
 
+                // This shifts the animation to the next level (determined by block heigth), there are 10 levels per screen with a block height of 12
+                (X_MOVEMENT == decreasing_x_movement) ? (x_start -= HEIGHT_OF_BLOCK) : (x_start += HEIGHT_OF_BLOCK);
+
+                // When game was not lost increment game count
                 if (game_lost == false)
                 {
                     game_count += 1;
+
+                    if (0 == (game_count % (CONFIG_GRAPHICS_PIXELWIDTH / HEIGHT_OF_BLOCK)))
+                    {
+                        clear_screen = true;
+                        prev_block_y_pos = 0;
+                        x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
+                    }
                 }
             }
             // speed of Animation
-            vTaskDelay(20 / portTICK_PERIOD_MS);
+            vTaskDelay(10 / portTICK_PERIOD_MS);
         }
-        // When game not lost increment game count
+        // time delay between blocks
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }

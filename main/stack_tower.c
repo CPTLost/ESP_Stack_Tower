@@ -2,6 +2,7 @@
 
 #include "graphics.h"
 
+// This function returns out_of_bounds (= 1) when out of bounds or success (= 0) when not
 return_t setBlockAnimationFrame(animation_movement ani_movement, uint8_t x_start, uint8_t y_position, block_t *block, uint8_t width_of_screen)
 {
 
@@ -20,6 +21,7 @@ return_t setBlockAnimationFrame(animation_movement ani_movement, uint8_t x_start
 
 return_t adaptBlockFrame(animation_movement ani_movement, uint8_t x_start, uint8_t prev_y_position, block_t *block, uint8_t width_of_screen)
 {
+    // for the first block
     if (0 == prev_y_position)
     {
         return success;
