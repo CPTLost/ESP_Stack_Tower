@@ -6,12 +6,16 @@
 #include "esp_log.h"
 #include "i2c4display.h"
 #include "stack_tower.h"
-
-#define LEFT_BTN_GPIO 9
+#include "esp_rom_sys.h"
 
 // Maybe put into SDKconfig
+#define LEFT_BTN_GPIO 9
 #define HEIGHT_OF_BLOCK 12
 #define WIDTH_OF_BLOCK 30
+#define GAME_STARTING_LEVEL_DELAY 100  // in ms
+#define GAME_STARTING_ANIM_DELAY 10000 // in µs
+#define GAME_MIN_ANIM_DELAY 4000
+
 // decreasing means that you start from max x value and then move down. Dependend on display orientation
 #define X_MOVEMENT decreasing_x_movement
 
@@ -22,11 +26,20 @@ uint32_t game_count = 0;
 bool clear_screen = false;
 bool game_lost = false;
 bool button_pressed = false;
+bool game_start = false;
 
 // This function is called when interrupt is triggered
 return_t button_callback()
 {
-    ESP_EARLY_LOGI(TAG, "Button Callback"); // DEBUG
+    // ESP_EARLY_LOGI(TAG, "Button Callback"); // DEBUG
+
+    if (false == game_start)
+    {
+        game_start = true;
+        clear_screen = true;
+        return success;
+    }
+
     // reset game with button press when lost
     if (game_lost == true)
     {
@@ -53,6 +66,27 @@ void app_main(void)
 
     block_t block = {block.width = WIDTH_OF_BLOCK, block.height = HEIGHT_OF_BLOCK};
 
+    uint32_t game_level_delay = GAME_STARTING_LEVEL_DELAY;
+    uint32_t game_anim_delay = GAME_STARTING_ANIM_DELAY;
+
+    graphics_startUpdate();
+    graphics_println("    STACK TOWER");
+    graphics_println("       THE GAME");
+    graphics_finishUpdate();
+
+    while (!game_start)
+    {
+        graphics_startUpdate();
+        graphics_setCursor(0, 40);
+        graphics_writeString("  Press Btn to Start");
+        graphics_finishUpdate();
+        vTaskDelay(800 / portTICK_PERIOD_MS);
+        graphics_startUpdate();
+        graphics_clearRegion(0, 40, 128, 64);
+        graphics_finishUpdate();
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+    };
+
     // Main loop
     while (1)
     {
@@ -65,6 +99,7 @@ void app_main(void)
             x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
             prev_block_y_pos = 0;
             block.width = WIDTH_OF_BLOCK;
+            game_anim_delay = GAME_STARTING_ANIM_DELAY;
 
             char game_score[16];
             sprintf(game_score, "Game Score: %ld", game_count);
@@ -151,11 +186,13 @@ void app_main(void)
                         x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
                     }
                 }
+                game_anim_delay = (game_anim_delay <= GAME_MIN_ANIM_DELAY) ? (GAME_MIN_ANIM_DELAY) : (game_anim_delay - 250);
+                ESP_LOGE(TAG, "game anim delay: %ld", game_anim_delay);
             }
             // speed of Animation
-            vTaskDelay(10 / portTICK_PERIOD_MS);
+            esp_rom_delay_us(game_anim_delay);
         }
         // time delay between blocks
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(game_level_delay / portTICK_PERIOD_MS);
     }
 }
