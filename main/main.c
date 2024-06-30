@@ -12,9 +12,28 @@
 #define LEFT_BTN_GPIO 9
 #define HEIGHT_OF_BLOCK 12
 #define WIDTH_OF_BLOCK 30
+#define GAMEMODE INCREASING_DIFFICULTY
+
+#if (GAMEMODE == INCREASING_DIFFICULTY)
+
 #define GAME_STARTING_LEVEL_DELAY 100  // in ms
 #define GAME_STARTING_ANIM_DELAY 10000 // in µs
 #define GAME_MIN_ANIM_DELAY 4000
+#endif
+
+#if (GAMEMODE == FIXED_DIFICULTY_HARD)
+
+#define GAME_STARTING_LEVEL_DELAY 100 // in ms
+#define GAME_STARTING_ANIM_DELAY 5000 // in µs
+#define GAME_MIN_ANIM_DELAY 5000
+#endif
+
+#if (GAMEMODE == FIXED_DIFFICULTY_EASY)
+
+#define GAME_STARTING_LEVEL_DELAY 100  // in ms
+#define GAME_STARTING_ANIM_DELAY 10000 // in µs
+#define GAME_MIN_ANIM_DELAY 4000
+#endif
 
 // decreasing means that you start from max x value and then move down. Dependend on display orientation
 #define X_MOVEMENT decreasing_x_movement
@@ -69,6 +88,7 @@ void app_main(void)
     uint32_t game_level_delay = GAME_STARTING_LEVEL_DELAY;
     uint32_t game_anim_delay = GAME_STARTING_ANIM_DELAY;
 
+    // Starting Screen
     graphics_startUpdate();
     graphics_println("    STACK TOWER");
     graphics_println("       THE GAME");
@@ -186,8 +206,11 @@ void app_main(void)
                         x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
                     }
                 }
-                game_anim_delay = (game_anim_delay <= GAME_MIN_ANIM_DELAY) ? (GAME_MIN_ANIM_DELAY) : (game_anim_delay - 250);
-                ESP_LOGE(TAG, "game anim delay: %ld", game_anim_delay);
+                if (GAMEMODE == INCREASING_DIFFICULTY)
+                {
+                    game_anim_delay = (game_anim_delay <= GAME_MIN_ANIM_DELAY) ? (GAME_MIN_ANIM_DELAY) : (game_anim_delay - 250);
+                    ESP_LOGE(TAG, "game anim delay: %ld", game_anim_delay);
+                }
             }
             // speed of Animation
             esp_rom_delay_us(game_anim_delay);
