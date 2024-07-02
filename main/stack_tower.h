@@ -4,9 +4,10 @@
 #include "return_t.h"
 #include "inttypes.h"
 
-#define INCREASING_DIFFICULTY 0
-#define FIXED_DIFICULTY_HARD 1
-#define FIXED_DIFFICULTY_EASY 2
+#define INCREASING_DIFFICULTY_HARD 0
+#define INCREASING_DIFFICULTY_EASY 1
+#define FIXED_DIFICULTY_HARD 2
+#define FIXED_DIFFICULTY_EASY 3
 typedef struct
 {
     int8_t width; // needs to be normal int to check for neg numbers

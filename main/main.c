@@ -12,13 +12,21 @@
 #define LEFT_BTN_GPIO 9
 #define HEIGHT_OF_BLOCK 12
 #define WIDTH_OF_BLOCK 30
-#define GAMEMODE INCREASING_DIFFICULTY
+#define X_MOVEMENT decreasing_x_movement // decreasing means that you start from max x value and then move down. Dependend on display orientation
+#define GAMEMODE INCREASING_DIFFICULTY_HARD
 
-#if (GAMEMODE == INCREASING_DIFFICULTY)
+#if (GAMEMODE == INCREASING_DIFFICULTY_HARD)
 
 #define GAME_STARTING_LEVEL_DELAY 100  // in ms
 #define GAME_STARTING_ANIM_DELAY 10000 // in µs
-#define GAME_MIN_ANIM_DELAY 4000
+#define GAME_MIN_ANIM_DELAY 5000
+#endif
+
+#if (GAMEMODE == INCREASING_DIFFICULTY_EASY)
+
+#define GAME_STARTING_LEVEL_DELAY 100  // in ms
+#define GAME_STARTING_ANIM_DELAY 12000 // in µs
+#define GAME_MIN_ANIM_DELAY 6000
 #endif
 
 #if (GAMEMODE == FIXED_DIFICULTY_HARD)
@@ -32,26 +40,21 @@
 
 #define GAME_STARTING_LEVEL_DELAY 100  // in ms
 #define GAME_STARTING_ANIM_DELAY 10000 // in µs
-#define GAME_MIN_ANIM_DELAY 4000
+#define GAME_MIN_ANIM_DELAY 10000
 #endif
-
-// decreasing means that you start from max x value and then move down. Dependend on display orientation
-#define X_MOVEMENT decreasing_x_movement
 
 static const char *TAG = "STACK TOWER";
 
 // globals
-uint32_t game_count = 0;
-bool clear_screen = false;
-bool game_lost = false;
-bool button_pressed = false;
-bool game_start = false;
+static uint32_t game_count = 0;
+static bool game_start = false;
+static bool game_lost = false;
+static bool button_pressed = false;
+static bool clear_screen = false;
 
-// This function is called when interrupt is triggered
+// This function is called when interrupt is triggered = Button is pressed
 return_t button_callback()
 {
-    // ESP_EARLY_LOGI(TAG, "Button Callback"); // DEBUG
-
     if (false == game_start)
     {
         game_start = true;
@@ -79,7 +82,7 @@ void app_main(void)
     ESP_ERROR_CHECK(graphics_init(I2C_INTERFACE, CONFIG_GRAPHICS_PIXELWIDTH, CONFIG_GRAPHICS_PIXELHEIGHT, 0, false, false));
     button_configure(LEFT_BTN_GPIO);
 
-    // Due to display orientation it needs to start from max x pos and count down
+    // Due to display orientation it needs to start from max x position and count down
     uint8_t x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
     uint8_t prev_block_y_pos = 0;
 
@@ -107,13 +110,13 @@ void app_main(void)
         vTaskDelay(250 / portTICK_PERIOD_MS);
     };
 
-    // Main loop
+    // Main level loop
     while (1)
     {
         int y_position = 0;
         bool stop_anim = false;
 
-        // This block resets the game when its lost
+        // This block resets the game after its lost
         if (game_lost == true && game_count != 0)
         {
             x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
@@ -131,7 +134,7 @@ void app_main(void)
             game_count = 0;
         }
 
-        // Block animation: 1 while interation == 1 level
+        // Block animation: one while loop iteration == 1 level animation
         while ((y_position < CONFIG_GRAPHICS_PIXELHEIGHT + WIDTH_OF_BLOCK) && (stop_anim == false) && (game_lost == false))
         {
             /*  - After a game is lost the screen needs to be cleared before starting the new game
@@ -194,7 +197,7 @@ void app_main(void)
                 // This shifts the animation to the next level (determined by block heigth), there are 10 levels per screen with a block height of 12
                 (X_MOVEMENT == decreasing_x_movement) ? (x_start -= HEIGHT_OF_BLOCK) : (x_start += HEIGHT_OF_BLOCK);
 
-                // When game was not lost increment game count
+                // When the game isn't lost increment game count
                 if (game_lost == false)
                 {
                     game_count += 1;
@@ -206,7 +209,7 @@ void app_main(void)
                         x_start = (X_MOVEMENT == decreasing_x_movement) ? CONFIG_GRAPHICS_PIXELWIDTH : 0;
                     }
                 }
-                if (GAMEMODE == INCREASING_DIFFICULTY)
+                if (GAMEMODE == INCREASING_DIFFICULTY_EASY || GAMEMODE == INCREASING_DIFFICULTY_HARD)
                 {
                     game_anim_delay = (game_anim_delay <= GAME_MIN_ANIM_DELAY) ? (GAME_MIN_ANIM_DELAY) : (game_anim_delay - 250);
                     ESP_LOGE(TAG, "game anim delay: %ld", game_anim_delay);
