@@ -1,3 +1,5 @@
+/* ESP_STACK_TOWER was created by Noah Plank as a Projekt for the Embedded Systems course of the FHV*/
+
 #include <stdio.h>
 #include <assert.h>
 #include "graphics.h"
@@ -194,8 +196,15 @@ void app_main(void)
                     game_lost = true;
                 }
 
-                // This shifts the animation to the next level (determined by block heigth), there are 10 levels per screen with a block height of 12
-                (X_MOVEMENT == decreasing_x_movement) ? (x_start -= HEIGHT_OF_BLOCK) : (x_start += HEIGHT_OF_BLOCK);
+                // This shifts the animation to the next level (determined by block heigth), (there are 10 levels per screen with a block height of 12)
+                if (X_MOVEMENT == decreasing_x_movement)
+                {
+                    x_start -= HEIGHT_OF_BLOCK;
+                }
+                else
+                {
+                    x_start += HEIGHT_OF_BLOCK;
+                }
 
                 // When the game isn't lost increment game count
                 if (game_lost == false)
